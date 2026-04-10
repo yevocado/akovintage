@@ -70,9 +70,16 @@ function ChannelBadge({ channel }) {
   );
 }
 
+function formatMonth(ym) {
+  const [year, month] = ym.split("-");
+  const currentYear = new Date().getFullYear().toString();
+  return year === currentYear ? `${parseInt(month)}월` : `${year.slice(2)}년 ${parseInt(month)}월`;
+}
+
 export default function InventoryView({
   inventory, filteredInventory, unsoldItems, soldItems,
   isLoading, error, searchTerm, setSearchTerm,
+  selectedMonth, setSelectedMonth, availableMonths,
   // 사입 모달
   isModalOpen, isSubmitting, editingItem, newItem, setNewItem,
   photoFile, setPhotoFile, photoPreview, setPhotoPreview,
@@ -137,15 +144,30 @@ export default function InventoryView({
             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-[9px] bg-ako-bg border border-ako-border rounded-lg focus:outline-none focus:border-ako-primary text-sm text-ako-text placeholder:text-ako-textLight transition-colors" />
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <button className="flex items-center justify-center gap-2 px-4 py-[9px] border border-ako-border rounded-lg hover:bg-ako-bg text-ako-textLight text-sm font-medium transition-colors w-full md:w-auto">
-            <Filter size={15} />필터
-          </button>
           <button className="flex items-center justify-center gap-2 px-4 py-[9px] border border-ako-border rounded-lg hover:bg-ako-bg text-ako-textLight text-sm font-medium transition-colors w-full md:w-auto">
             <ArrowUpDown size={15} />정렬
           </button>
         </div>
       </div>
+
+      {/* 월 필터 칩 */}
+      {availableMonths.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
+          {["전체", ...availableMonths].map((m) => (
+            <button
+              key={m}
+              onClick={() => setSelectedMonth(m)}
+              className={`shrink-0 px-4 py-[7px] rounded-full text-sm font-medium border transition-colors ${
+                selectedMonth === m
+                  ? "bg-ako-primary text-white border-ako-primary"
+                  : "bg-white text-ako-textLight border-ako-border hover:border-ako-primary hover:text-ako-primary"
+              }`}
+            >
+              {m === "전체" ? "전체" : formatMonth(m)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 테이블 */}
       <div className="bg-white rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">

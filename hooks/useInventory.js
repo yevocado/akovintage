@@ -21,6 +21,7 @@ export function useInventory() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("전체");
 
   // 사입 등록 모달
   const [isModalOpen, setIsModalOpen]   = useState(false);
@@ -53,15 +54,23 @@ export function useInventory() {
     }
   };
 
+  const availableMonths = useMemo(() => {
+    const months = [...new Set(items.map((i) => i.purchase_date?.slice(0, 7)).filter(Boolean))];
+    return months.sort((a, b) => b.localeCompare(a));
+  }, [items]);
+
   const filteredInventory = useMemo(() => {
     const term = searchTerm.toLowerCase();
-    return items.filter(
-      (i) =>
+    return items.filter((i) => {
+      const matchSearch =
         i.name?.toLowerCase().includes(term) ||
         i.purchase_location?.toLowerCase().includes(term) ||
-        i.sale_channel?.toLowerCase().includes(term)
-    );
-  }, [items, searchTerm]);
+        i.sale_channel?.toLowerCase().includes(term);
+      const matchMonth =
+        selectedMonth === "전체" || i.purchase_date?.startsWith(selectedMonth);
+      return matchSearch && matchMonth;
+    });
+  }, [items, searchTerm, selectedMonth]);
 
   const unsoldItems = useMemo(() => items.filter((i) => i.sale_price === null), [items]);
   const soldItems   = useMemo(() => items.filter((i) => i.sale_price !== null), [items]);
@@ -204,6 +213,9 @@ export function useInventory() {
     error,
     searchTerm,
     setSearchTerm,
+    selectedMonth,
+    setSelectedMonth,
+    availableMonths,
     // 사입 모달
     isModalOpen,
     isSubmitting,
