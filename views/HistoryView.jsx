@@ -6,9 +6,16 @@ const TYPE_STYLE = {
   "입고": { bg: "#EEF2FF", text: "#4A5BA8" },
 };
 
+function formatMonth(ym) {
+  const [year, month] = ym.split("-");
+  const currentYear = new Date().getFullYear().toString();
+  return year === currentYear ? `${parseInt(month)}월` : `${year.slice(2)}년 ${parseInt(month)}월`;
+}
+
 export default function HistoryView({ inventory = [], isLoading = false }) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("전체");
+  const [selectedMonth, setSelectedMonth] = useState("전체");
 
   // inventory 아이템 → 입고 + 판매 이벤트로 펼치기
   const allEvents = useMemo(() => {
@@ -36,13 +43,19 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
     return events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }, [inventory]);
 
+  const availableMonths = useMemo(() => {
+    const months = [...new Set(allEvents.map((h) => h.date?.slice(0, 7)).filter(Boolean))];
+    return months.sort((a, b) => b.localeCompare(a));
+  }, [allEvents]);
+
   const filtered = useMemo(() => {
     return allEvents.filter((h) => {
       const matchSearch = h.name.toLowerCase().includes(search.toLowerCase());
       const matchType = filterType === "전체" || h.type === filterType;
-      return matchSearch && matchType;
+      const matchMonth = selectedMonth === "전체" || h.date?.startsWith(selectedMonth);
+      return matchSearch && matchType && matchMonth;
     });
-  }, [allEvents, search, filterType]);
+  }, [allEvents, search, filterType, selectedMonth]);
 
   const totalIn  = allEvents.filter((h) => h.type === "판매").reduce((sum, h) => sum + h.amount, 0);
   const totalShipping = inventory
@@ -185,6 +198,25 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
           ))}
         </div>
       </div>
+
+      {/* 월 필터 칩 */}
+      {availableMonths.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
+          {["전체", ...availableMonths].map((m) => (
+            <button
+              key={m}
+              onClick={() => setSelectedMonth(m)}
+              className={`shrink-0 px-4 py-[7px] rounded-full text-sm font-medium border transition-colors ${
+                selectedMonth === m
+                  ? "bg-ako-primary text-white border-ako-primary"
+                  : "bg-white text-ako-textLight border-ako-border hover:border-ako-primary hover:text-ako-primary"
+              }`}
+            >
+              {m === "전체" ? "전체" : formatMonth(m)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 거래 리스트 */}
       <div className="bg-white rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">

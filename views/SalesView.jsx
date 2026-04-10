@@ -10,22 +10,35 @@ const CHANNEL_STYLE = {
   "직거래/기타":{ bg: "#F0F0F0", text: "#666666" },
 };
 
+function formatMonth(ym) {
+  const [year, month] = ym.split("-");
+  const currentYear = new Date().getFullYear().toString();
+  return year === currentYear ? `${parseInt(month)}월` : `${year.slice(2)}년 ${parseInt(month)}월`;
+}
+
 export default function SalesView({ soldItems = [] }) {
   const [search, setSearch] = useState("");
   const [filterChannel, setFilterChannel] = useState("전체");
+  const [selectedMonth, setSelectedMonth] = useState("전체");
 
   const channels = useMemo(
     () => ["전체", ...Array.from(new Set(soldItems.map((s) => s.sale_channel).filter(Boolean)))],
     [soldItems]
   );
 
+  const availableMonths = useMemo(() => {
+    const months = [...new Set(soldItems.map((s) => (s.sale_date || s.purchase_date)?.slice(0, 7)).filter(Boolean))];
+    return months.sort((a, b) => b.localeCompare(a));
+  }, [soldItems]);
+
   const filtered = useMemo(() => {
     return soldItems.filter((s) => {
       const matchSearch = s.name.toLowerCase().includes(search.toLowerCase());
       const matchChannel = filterChannel === "전체" || s.sale_channel === filterChannel;
-      return matchSearch && matchChannel;
+      const matchMonth = selectedMonth === "전체" || (s.sale_date || s.purchase_date)?.startsWith(selectedMonth);
+      return matchSearch && matchChannel && matchMonth;
     });
-  }, [soldItems, search, filterChannel]);
+  }, [soldItems, search, filterChannel, selectedMonth]);
 
   const totalRevenue = soldItems.reduce((sum, s) => sum + (s.sale_price || 0), 0);
   const totalProfit  = soldItems.reduce((sum, s) => sum + ((s.sale_price || 0) - (s.purchase_cost || 0) - (s.shipping_cost || 0)), 0);
@@ -84,6 +97,25 @@ export default function SalesView({ soldItems = [] }) {
           ))}
         </div>
       </div>
+
+      {/* 월 필터 칩 */}
+      {availableMonths.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto scrollbar-none pb-0.5">
+          {["전체", ...availableMonths].map((m) => (
+            <button
+              key={m}
+              onClick={() => setSelectedMonth(m)}
+              className={`shrink-0 px-4 py-[7px] rounded-full text-sm font-medium border transition-colors ${
+                selectedMonth === m
+                  ? "bg-ako-primary text-white border-ako-primary"
+                  : "bg-white text-ako-textLight border-ako-border hover:border-ako-primary hover:text-ako-primary"
+              }`}
+            >
+              {m === "전체" ? "전체" : formatMonth(m)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 테이블 */}
       <div className="bg-white rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)] overflow-hidden">
