@@ -73,17 +73,20 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
     inventory.forEach((i) => {
       const buyKey = (i.purchase_date || "").slice(0, 7);
       if (buyKey) {
-        if (!map[buyKey]) map[buyKey] = { month: buyKey, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, profit: 0 };
+        if (!map[buyKey]) map[buyKey] = { month: buyKey, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, shippingCost: 0, profit: 0, purchasedItems: [], soldItems: [] };
         map[buyKey].buyCount++;
         map[buyKey].buyCost += i.purchase_cost || 0;
+        map[buyKey].purchasedItems.push(i);
       }
       if (i.sale_price !== null) {
         const sellKey = (i.sale_date || i.purchase_date || "").slice(0, 7);
         if (sellKey) {
-          if (!map[sellKey]) map[sellKey] = { month: sellKey, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, profit: 0 };
+          if (!map[sellKey]) map[sellKey] = { month: sellKey, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, shippingCost: 0, profit: 0, purchasedItems: [], soldItems: [] };
           map[sellKey].sellCount++;
           map[sellKey].revenue += i.sale_price || 0;
-          map[sellKey].profit  += (i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0);
+          map[sellKey].shippingCost += i.shipping_cost || 0;
+          map[sellKey].profit += (i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0);
+          map[sellKey].soldItems.push(i);
         }
       }
     });
@@ -302,95 +305,104 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
         </div>
       </div>
       {/* 월별 리포트 상세 모달 */}
-      {reportDetail && (() => {
-        const monthItems = inventory.filter((i) => i.purchase_date?.startsWith(reportDetail.month));
-        const monthSold  = inventory.filter((i) => i.sale_price !== null && (i.sale_date || i.purchase_date)?.startsWith(reportDetail.month));
-        return (
-          <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4">
-            <div className="absolute inset-0 bg-black/40" onClick={() => setReportDetail(null)} />
-            <div className="bg-white rounded-t-[20px] md:rounded-[16px] w-full md:max-w-[520px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10 max-h-[85vh] flex flex-col">
-              {/* 헤더 */}
-              <div className="px-6 py-5 border-b border-ako-border flex items-center justify-between shrink-0">
-                <div>
-                  <h3 className="text-[17px] font-bold text-ako-text">
-                    {reportDetail.month.replace("-", "년 ")}월 리포트
-                  </h3>
-                  <p className="text-xs text-ako-textLight mt-0.5">
-                    사입 {reportDetail.buyCount}건 · 판매 {reportDetail.sellCount}건
-                  </p>
+      {reportDetail && (
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setReportDetail(null)} />
+          <div className="bg-white rounded-t-[20px] md:rounded-[16px] w-full md:max-w-[520px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10 max-h-[85vh] flex flex-col">
+            {/* 헤더 */}
+            <div className="px-6 py-5 border-b border-ako-border flex items-center justify-between shrink-0">
+              <div>
+                <h3 className="text-[17px] font-bold text-ako-text">
+                  {reportDetail.month.replace("-", "년 ")}월 리포트
+                </h3>
+                <p className="text-xs text-ako-textLight mt-0.5">
+                  사입 {reportDetail.buyCount}건 · 판매 {reportDetail.sellCount}건
+                </p>
+              </div>
+              <button onClick={() => setReportDetail(null)} className="text-ako-textLight hover:text-ako-text transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 p-6 space-y-5">
+              {/* 비용 요약 (분리) */}
+              <div className="bg-ako-bg rounded-xl p-4 space-y-2 text-sm">
+                {[
+                  { label: "사입비용", value: -reportDetail.buyCost, color: "text-ako-error" },
+                  { label: "배송비", value: -reportDetail.shippingCost, color: "text-ako-error" },
+                  { label: "매출", value: reportDetail.revenue, color: "text-ako-success" },
+                ].map((s) => (
+                  <div key={s.label} className="flex justify-between">
+                    <span className="text-ako-textLight">{s.label}</span>
+                    <span className={`font-semibold ${s.color}`}>
+                      {s.value >= 0 ? "+" : ""}₩{Math.abs(s.value).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                <div className="border-t border-ako-border pt-2 flex justify-between">
+                  <span className="font-semibold text-ako-text">순이익</span>
+                  <span className={`font-bold text-[15px] ${reportDetail.profit >= 0 ? "text-ako-success" : "text-ako-error"}`}>
+                    {reportDetail.profit >= 0 ? "+" : ""}₩{reportDetail.profit.toLocaleString()}
+                  </span>
                 </div>
-                <button onClick={() => setReportDetail(null)} className="text-ako-textLight hover:text-ako-text transition-colors">
-                  <X size={20} />
-                </button>
               </div>
 
-              <div className="overflow-y-auto flex-1 p-6 space-y-5">
-                {/* 요약 */}
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "사입비용", value: `-₩${reportDetail.buyCost.toLocaleString()}`, color: "text-ako-error" },
-                    { label: "매출", value: `+₩${reportDetail.revenue.toLocaleString()}`, color: "text-ako-success" },
-                    { label: "순이익", value: (reportDetail.profit >= 0 ? "+" : "") + `₩${reportDetail.profit.toLocaleString()}`, color: reportDetail.profit >= 0 ? "text-ako-success" : "text-ako-error" },
-                  ].map((s) => (
-                    <div key={s.label} className="bg-ako-bg rounded-xl p-3 text-center">
-                      <p className="text-[10px] text-ako-textLight font-medium mb-1">{s.label}</p>
-                      <p className={`text-[13px] font-bold ${s.color}`}>{s.value}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* 사입 목록 */}
-                {monthItems.length > 0 && (
-                  <div>
-                    <p className="text-[13px] font-semibold text-ako-text mb-2">이달 사입 ({monthItems.length}건)</p>
-                    <div className="space-y-2">
-                      {monthItems.map((i) => (
-                        <div key={i.id} className="flex items-center justify-between py-2 border-b border-ako-border last:border-0">
-                          <div>
-                            <p className="text-[13px] font-medium text-ako-text">{i.name}</p>
-                            <p className="text-[11px] text-ako-textLight">{i.purchase_location} · {i.purchase_date}</p>
-                          </div>
-                          <p className="text-[13px] text-ako-error shrink-0">-₩{i.purchase_cost?.toLocaleString()}</p>
+              {/* 사입 목록 */}
+              {reportDetail.purchasedItems.length > 0 && (
+                <div>
+                  <p className="text-[13px] font-semibold text-ako-text mb-2">이달 사입 ({reportDetail.purchasedItems.length}건)</p>
+                  <div className="divide-y divide-ako-border border border-ako-border rounded-xl overflow-hidden">
+                    {reportDetail.purchasedItems.map((i) => (
+                      <div key={i.id} className="flex items-center justify-between px-4 py-3">
+                        <div>
+                          <p className="text-[13px] font-medium text-ako-text">{i.name}</p>
+                          <p className="text-[11px] text-ako-textLight">{i.purchase_location} · {i.purchase_date}</p>
                         </div>
-                      ))}
-                    </div>
+                        <p className="text-[13px] text-ako-error shrink-0 font-semibold">-₩{i.purchase_cost?.toLocaleString()}</p>
+                      </div>
+                    ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* 판매 목록 */}
-                {monthSold.length > 0 && (
-                  <div>
-                    <p className="text-[13px] font-semibold text-ako-text mb-2">이달 판매 ({monthSold.length}건)</p>
-                    <div className="space-y-2">
-                      {monthSold.map((i) => {
-                        const profit = (i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0);
-                        return (
-                          <div key={i.id} className="flex items-center justify-between py-2 border-b border-ako-border last:border-0">
+              {/* 판매 목록 */}
+              {reportDetail.soldItems.length > 0 && (
+                <div>
+                  <p className="text-[13px] font-semibold text-ako-text mb-2">이달 판매 ({reportDetail.soldItems.length}건)</p>
+                  <div className="divide-y divide-ako-border border border-ako-border rounded-xl overflow-hidden">
+                    {reportDetail.soldItems.map((i) => {
+                      const profit = (i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0);
+                      return (
+                        <div key={i.id} className="px-4 py-3">
+                          <div className="flex items-center justify-between">
                             <div>
                               <p className="text-[13px] font-medium text-ako-text">{i.name}</p>
                               <p className="text-[11px] text-ako-textLight">{i.sale_channel || "—"} · {i.sale_date || i.purchase_date}</p>
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-[13px] text-ako-success">+₩{i.sale_price?.toLocaleString()}</p>
+                              <p className="text-[13px] text-ako-success font-semibold">+₩{i.sale_price?.toLocaleString()}</p>
                               <p className={`text-[11px] font-semibold ${profit >= 0 ? "text-ako-success" : "text-ako-error"}`}>
-                                {profit >= 0 ? "+" : ""}₩{profit.toLocaleString()}
+                                수익 {profit >= 0 ? "+" : ""}₩{profit.toLocaleString()}
                               </p>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+                          {i.shipping_cost > 0 && (
+                            <p className="text-[11px] text-ako-textLight mt-1">배송비 -₩{i.shipping_cost?.toLocaleString()}</p>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                )}
+                </div>
+              )}
 
-                {monthItems.length === 0 && monthSold.length === 0 && (
-                  <p className="text-center text-ako-textLight text-sm py-8">데이터가 없어요.</p>
-                )}
-              </div>
+              {reportDetail.purchasedItems.length === 0 && reportDetail.soldItems.length === 0 && (
+                <p className="text-center text-ako-textLight text-sm py-8">데이터가 없어요.</p>
+              )}
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
     </div>
   );
 }
