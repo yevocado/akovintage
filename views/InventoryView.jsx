@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import {
-  Search, Plus, Edit2, Trash2, Filter, ChevronRight, ChevronLeft,
-  ArrowUpDown, Loader2, RefreshCw, AlertCircle, X, ShoppingBag, Camera, ImagePlus,
+  Search, Plus, Edit2, Trash2, ChevronRight, ChevronLeft,
+  Loader2, RefreshCw, AlertCircle, X, ShoppingBag, Camera, ImagePlus,
 } from "lucide-react";
 import { IS_DEMO } from "../lib/supabase";
 
@@ -137,16 +137,12 @@ export default function InventoryView({
       </div>
 
       {/* 검색 */}
-      <div className="bg-white p-4 rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)] flex flex-col md:flex-row gap-3 items-center">
-        <div className="relative flex-1 w-full">
+      <div className="bg-white p-4 rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
+        <div className="relative w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-ako-textLight" size={16} />
           <input type="text" placeholder="상품명, 사입처 검색..."
             value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-9 pr-4 py-[9px] bg-ako-bg border border-ako-border rounded-lg focus:outline-none focus:border-ako-primary text-sm text-ako-text placeholder:text-ako-textLight transition-colors" />
-        </div>
-          <button className="flex items-center justify-center gap-2 px-4 py-[9px] border border-ako-border rounded-lg hover:bg-ako-bg text-ako-textLight text-sm font-medium transition-colors w-full md:w-auto">
-            <ArrowUpDown size={15} />정렬
-          </button>
         </div>
       </div>
 
