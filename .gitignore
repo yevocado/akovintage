@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Python venv
+ako/
+pyvenv.cfg
+Include/
+Lib/
+Scripts/
+
+# Misc
+.DS_Store
+*.log
