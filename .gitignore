@@ -16,6 +16,9 @@ Include/
 Lib/
 Scripts/
 
+# 프로젝트 lib 폴더는 제외에서 해제
+!lib/
+
 # Misc
 .DS_Store
 *.log
