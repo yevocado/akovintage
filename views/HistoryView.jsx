@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { History, TrendingUp, TrendingDown, Search, Loader2 } from "lucide-react";
+import { History, TrendingUp, TrendingDown, Search, Loader2, X, ChevronRight } from "lucide-react";
 
 const TYPE_STYLE = {
   "판매": { bg: "#E8F4E8", text: "#4A7A50" },
@@ -16,6 +16,7 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("전체");
   const [selectedMonth, setSelectedMonth] = useState("전체");
+  const [reportDetail, setReportDetail] = useState(null);
 
   // inventory 아이템 → 입고 + 판매 이벤트로 펼치기
   const allEvents = useMemo(() => {
@@ -154,8 +155,13 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
               {monthlyReport.length === 0 ? (
                 <tr><td colSpan="6" className="px-4 py-8 text-center text-ako-textLight text-sm">데이터가 없어요.</td></tr>
               ) : monthlyReport.map((r) => (
-                <tr key={r.month} className="border-b border-ako-border hover:bg-ako-bg transition-colors">
-                  <td className="px-4 py-[11px] text-[13px] font-semibold text-ako-text">{r.month.replace("-", "년 ") + "월"}</td>
+                <tr key={r.month}
+                  onClick={() => setReportDetail(r)}
+                  className="border-b border-ako-border hover:bg-ako-bg transition-colors cursor-pointer">
+                  <td className="px-4 py-[11px] text-[13px] font-semibold text-ako-text flex items-center gap-1">
+                    {r.month.replace("-", "년 ") + "월"}
+                    <ChevronRight size={13} className="text-ako-textLight" />
+                  </td>
                   <td className="px-4 py-[11px] text-[13px] text-ako-textLight">{r.buyCount}건</td>
                   <td className="px-4 py-[11px] text-[13px] text-ako-error">-₩{r.buyCost.toLocaleString()}</td>
                   <td className="px-4 py-[11px] text-[13px] text-ako-textLight">{r.sellCount}건</td>
@@ -295,6 +301,96 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
           <p className="text-xs text-ako-textLight">총 {allEvents.length}건 중 {filtered.length}건 표시</p>
         </div>
       </div>
+      {/* 월별 리포트 상세 모달 */}
+      {reportDetail && (() => {
+        const monthItems = inventory.filter((i) => i.purchase_date?.startsWith(reportDetail.month));
+        const monthSold  = inventory.filter((i) => i.sale_price !== null && (i.sale_date || i.purchase_date)?.startsWith(reportDetail.month));
+        return (
+          <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4">
+            <div className="absolute inset-0 bg-black/40" onClick={() => setReportDetail(null)} />
+            <div className="bg-white rounded-t-[20px] md:rounded-[16px] w-full md:max-w-[520px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10 max-h-[85vh] flex flex-col">
+              {/* 헤더 */}
+              <div className="px-6 py-5 border-b border-ako-border flex items-center justify-between shrink-0">
+                <div>
+                  <h3 className="text-[17px] font-bold text-ako-text">
+                    {reportDetail.month.replace("-", "년 ")}월 리포트
+                  </h3>
+                  <p className="text-xs text-ako-textLight mt-0.5">
+                    사입 {reportDetail.buyCount}건 · 판매 {reportDetail.sellCount}건
+                  </p>
+                </div>
+                <button onClick={() => setReportDetail(null)} className="text-ako-textLight hover:text-ako-text transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 p-6 space-y-5">
+                {/* 요약 */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "사입비용", value: `-₩${reportDetail.buyCost.toLocaleString()}`, color: "text-ako-error" },
+                    { label: "매출", value: `+₩${reportDetail.revenue.toLocaleString()}`, color: "text-ako-success" },
+                    { label: "순이익", value: (reportDetail.profit >= 0 ? "+" : "") + `₩${reportDetail.profit.toLocaleString()}`, color: reportDetail.profit >= 0 ? "text-ako-success" : "text-ako-error" },
+                  ].map((s) => (
+                    <div key={s.label} className="bg-ako-bg rounded-xl p-3 text-center">
+                      <p className="text-[10px] text-ako-textLight font-medium mb-1">{s.label}</p>
+                      <p className={`text-[13px] font-bold ${s.color}`}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 사입 목록 */}
+                {monthItems.length > 0 && (
+                  <div>
+                    <p className="text-[13px] font-semibold text-ako-text mb-2">이달 사입 ({monthItems.length}건)</p>
+                    <div className="space-y-2">
+                      {monthItems.map((i) => (
+                        <div key={i.id} className="flex items-center justify-between py-2 border-b border-ako-border last:border-0">
+                          <div>
+                            <p className="text-[13px] font-medium text-ako-text">{i.name}</p>
+                            <p className="text-[11px] text-ako-textLight">{i.purchase_location} · {i.purchase_date}</p>
+                          </div>
+                          <p className="text-[13px] text-ako-error shrink-0">-₩{i.purchase_cost?.toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 판매 목록 */}
+                {monthSold.length > 0 && (
+                  <div>
+                    <p className="text-[13px] font-semibold text-ako-text mb-2">이달 판매 ({monthSold.length}건)</p>
+                    <div className="space-y-2">
+                      {monthSold.map((i) => {
+                        const profit = (i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0);
+                        return (
+                          <div key={i.id} className="flex items-center justify-between py-2 border-b border-ako-border last:border-0">
+                            <div>
+                              <p className="text-[13px] font-medium text-ako-text">{i.name}</p>
+                              <p className="text-[11px] text-ako-textLight">{i.sale_channel || "—"} · {i.sale_date || i.purchase_date}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-[13px] text-ako-success">+₩{i.sale_price?.toLocaleString()}</p>
+                              <p className={`text-[11px] font-semibold ${profit >= 0 ? "text-ako-success" : "text-ako-error"}`}>
+                                {profit >= 0 ? "+" : ""}₩{profit.toLocaleString()}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {monthItems.length === 0 && monthSold.length === 0 && (
+                  <p className="text-center text-ako-textLight text-sm py-8">데이터가 없어요.</p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
