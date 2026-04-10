@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Search, Plus, Edit2, Trash2, Filter, ChevronRight, ChevronLeft,
-  ArrowUpDown, Loader2, RefreshCw, AlertCircle, X, ShoppingBag,
+  ArrowUpDown, Loader2, RefreshCw, AlertCircle, X, ShoppingBag, Camera, ImagePlus,
 } from "lucide-react";
 import { IS_DEMO } from "../lib/supabase";
 
@@ -75,6 +75,7 @@ export default function InventoryView({
   isLoading, error, searchTerm, setSearchTerm,
   // 사입 모달
   isModalOpen, isSubmitting, editingItem, newItem, setNewItem,
+  photoFile, setPhotoFile, photoPreview, setPhotoPreview,
   openModal, closeModal, handleAddItem,
   // 판매 모달
   isSellModalOpen, isSellSubmitting, sellingItem, saleInfo, setSaleInfo,
@@ -82,6 +83,7 @@ export default function InventoryView({
   // 기타
   handleDeleteItem, fetchInventory,
 }) {
+  const fileInputRef = useRef(null);
   const totalProfit = soldItems.reduce(
     (acc, i) => acc + ((i.sale_price || 0) - (i.purchase_cost || 0)), 0
   );
@@ -172,6 +174,10 @@ export default function InventoryView({
                 const profit = sold ? item.sale_price - item.purchase_cost - (item.shipping_cost || 0) : null;
                 return (
                   <div key={item.id} className="p-4 flex items-start justify-between gap-3 hover:bg-ako-bg transition-colors">
+                    {item.photo_url && (
+                      <img src={item.photo_url} alt={item.name}
+                        className="w-14 h-14 object-cover rounded-lg border border-ako-border shrink-0" />
+                    )}
                     <div className="flex-1 min-w-0 space-y-1">
                       <p className="text-sm font-semibold text-ako-text truncate">{item.name}</p>
                       <p className="text-xs text-ako-textLight">{item.purchase_date} · {item.purchase_location}</p>
@@ -234,7 +240,13 @@ export default function InventoryView({
                     return (
                       <tr key={item.id} className="border-b border-ako-border hover:bg-ako-bg transition-colors">
                         <td className="px-[14px] py-[12px]">
-                          <p className="text-[13px] font-semibold text-ako-text">{item.name}</p>
+                          <div className="flex items-center gap-2.5">
+                            {item.photo_url && (
+                              <img src={item.photo_url} alt={item.name}
+                                className="w-9 h-9 object-cover rounded-lg border border-ako-border shrink-0" />
+                            )}
+                            <p className="text-[13px] font-semibold text-ako-text">{item.name}</p>
+                          </div>
                         </td>
                         <td className="px-[14px] py-[12px] text-[13px] text-ako-textLight">{item.purchase_date}</td>
                         <td className="px-[14px] py-[12px] text-[13px] text-ako-textLight">{item.purchase_location}</td>
@@ -354,6 +366,62 @@ export default function InventoryView({
                   placeholder="0"
                   className="w-full px-3 py-[9px] border border-ako-border rounded-lg focus:outline-none focus:border-ako-primary text-sm text-ako-text disabled:opacity-50 transition-colors" />
               </div>
+
+              {/* 사진 업로드 */}
+              <div className="space-y-[5px]">
+                <label className="text-[13px] text-ako-textLight font-medium">상품 사진 (선택)</label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={isSubmitting}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setPhotoFile(file);
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setPhotoPreview(ev.target.result);
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {photoPreview ? (
+                  <div className="relative w-full">
+                    <img
+                      src={photoPreview}
+                      alt="미리보기"
+                      className="w-full h-48 object-cover rounded-xl border border-ako-border"
+                    />
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => { setPhotoFile(null); setPhotoPreview(""); fileInputRef.current.value = ""; }}
+                      className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute bottom-2 right-2 bg-white/90 text-ako-textLight border border-ako-border rounded-lg px-3 py-1.5 text-xs font-medium hover:bg-white transition-colors flex items-center gap-1.5"
+                    >
+                      <ImagePlus size={13} />변경
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={isSubmitting}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full h-32 border-2 border-dashed border-ako-border rounded-xl flex flex-col items-center justify-center gap-2 text-ako-textLight hover:border-ako-primary hover:text-ako-primary transition-colors disabled:opacity-50"
+                  >
+                    <Camera size={24} />
+                    <span className="text-xs font-medium">사진 찍기 / 라이브러리에서 선택</span>
+                  </button>
+                )}
+              </div>
+
               <div className="pt-2 flex gap-3">
                 <button type="button" disabled={isSubmitting} onClick={closeModal}
                   className="flex-1 py-[9px] border border-ako-border rounded-lg text-sm font-medium text-ako-textLight hover:bg-ako-bg transition-colors disabled:opacity-50">

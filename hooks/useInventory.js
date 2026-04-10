@@ -6,6 +6,7 @@ const EMPTY_NEW_ITEM = {
   purchase_date: new Date().toISOString().split("T")[0],
   purchase_cost: "",
   purchase_location: "",
+  photo_url: "",
 };
 
 const EMPTY_SALE_INFO = {
@@ -26,6 +27,8 @@ export function useInventory() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingItem, setEditingItem]   = useState(null);
   const [newItem, setNewItem]           = useState(EMPTY_NEW_ITEM);
+  const [photoFile, setPhotoFile]       = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
 
   // 판매 완료 모달
   const [isSellModalOpen, setIsSellModalOpen] = useState(false);
@@ -72,31 +75,54 @@ export function useInventory() {
         purchase_date: item.purchase_date,
         purchase_cost: item.purchase_cost,
         purchase_location: item.purchase_location,
+        photo_url: item.photo_url || "",
       });
+      setPhotoPreview(item.photo_url || "");
     } else {
       setEditingItem(null);
       setNewItem(EMPTY_NEW_ITEM);
+      setPhotoPreview("");
     }
+    setPhotoFile(null);
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
     setEditingItem(null);
+    setPhotoFile(null);
+    setPhotoPreview("");
   };
 
   const handleAddItem = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const itemToSave = {
-      name: newItem.name,
-      purchase_date: newItem.purchase_date,
-      purchase_cost: parseInt(newItem.purchase_cost) || 0,
-      purchase_location: newItem.purchase_location,
-      sale_price: null,
-      sale_channel: null,
-    };
     try {
+      let photo_url = newItem.photo_url || null;
+
+      if (photoFile) {
+        const ext = photoFile.name.split(".").pop();
+        const path = `${Date.now()}.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("item-photos")
+          .upload(path, photoFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage
+          .from("item-photos")
+          .getPublicUrl(path);
+        photo_url = urlData.publicUrl;
+      }
+
+      const itemToSave = {
+        name: newItem.name,
+        purchase_date: newItem.purchase_date,
+        purchase_cost: parseInt(newItem.purchase_cost) || 0,
+        purchase_location: newItem.purchase_location,
+        photo_url,
+        sale_price: null,
+        sale_channel: null,
+      };
+
       if (editingItem) {
         const { error } = await supabase
           .from("items")
@@ -184,6 +210,10 @@ export function useInventory() {
     editingItem,
     newItem,
     setNewItem,
+    photoFile,
+    setPhotoFile,
+    photoPreview,
+    setPhotoPreview,
     openModal,
     closeModal,
     handleAddItem,
