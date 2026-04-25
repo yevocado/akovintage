@@ -362,7 +362,7 @@ export default function InventoryView({
                   placeholder="예) 빈티지 가죽 자켓"
                   className="w-full px-3 py-[9px] border border-ako-border rounded-lg focus:outline-none focus:border-ako-primary text-sm text-ako-text placeholder:text-ako-textLight disabled:opacity-50 transition-colors" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex flex-col gap-3">
                 <div className="space-y-[5px]">
                   <label className="text-[13px] text-ako-textLight font-medium">사입일</label>
                   <input required disabled={isSubmitting} type="date"
