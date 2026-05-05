@@ -5,7 +5,6 @@ import {
   ShoppingCart,
   History,
   Settings,
-  User,
 } from "lucide-react";
 import DashboardView from "./views/DashboardView";
 import InventoryView from "./views/InventoryView";
@@ -13,6 +12,7 @@ import SalesView from "./views/SalesView";
 import HistoryView from "./views/HistoryView";
 import SettingsView from "./views/SettingsView";
 import { useInventory } from "./hooks/useInventory";
+import { useExtraCosts } from "./hooks/useExtraCosts";
 
 const NAV_ITEMS = [
   { id: "dashboard", icon: LayoutDashboard, label: "대시보드" },
@@ -25,17 +25,18 @@ const NAV_ITEMS = [
 export default function AkoVintageApp() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const inventoryState = useInventory();
+  const extraCostsState = useExtraCosts();
 
   useEffect(() => {
     inventoryState.fetchInventory();
   }, []);
 
   const renderContent = () => {
-    if (activeTab === "dashboard") return <DashboardView inventory={inventoryState.inventory} isLoading={inventoryState.isLoading} />;
+    if (activeTab === "dashboard") return <DashboardView inventory={inventoryState.inventory} isLoading={inventoryState.isLoading} extraItems={extraCostsState.extraItems} />;
     if (activeTab === "inventory") return <InventoryView {...inventoryState} />;
     if (activeTab === "sales")     return <SalesView soldItems={inventoryState.soldItems} />;
-    if (activeTab === "history")   return <HistoryView inventory={inventoryState.inventory} isLoading={inventoryState.isLoading} />;
-    if (activeTab === "settings")  return <SettingsView />;
+    if (activeTab === "history")   return <HistoryView inventory={inventoryState.inventory} isLoading={inventoryState.isLoading} extraItems={extraCostsState.extraItems} />;
+    if (activeTab === "settings")  return <SettingsView extraItems={extraCostsState.extraItems} addExtra={extraCostsState.addExtra} removeExtra={extraCostsState.removeExtra} />;
   };
 
   return (
@@ -71,11 +72,6 @@ export default function AkoVintageApp() {
           ))}
         </nav>
 
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-ako-primary flex items-center justify-center cursor-pointer">
-            <User size={15} className="text-white" />
-          </div>
-        </div>
       </header>
 
       {/* ── 본문 ── */}

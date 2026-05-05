@@ -20,13 +20,15 @@ import {
 } from "recharts";
 import StatCard from "../components/StatCard";
 
-export default function DashboardView({ inventory, isLoading }) {
+export default function DashboardView({ inventory, isLoading, extraItems = [] }) {
   const soldItems   = useMemo(() => inventory.filter((i) => i.sale_price !== null), [inventory]);
   const unsoldItems = useMemo(() => inventory.filter((i) => i.sale_price === null), [inventory]);
 
   const totalProfit = useMemo(
-    () => soldItems.reduce((acc, i) => acc + ((i.sale_price || 0) - (i.purchase_cost || 0)), 0),
-    [soldItems]
+    () =>
+      soldItems.reduce((acc, i) => acc + ((i.sale_price || 0) - (i.purchase_cost || 0)), 0) +
+      extraItems.reduce((acc, e) => acc + e.amount, 0),
+    [soldItems, extraItems]
   );
 
   const totalInvested = useMemo(

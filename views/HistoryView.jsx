@@ -2,8 +2,10 @@ import React, { useState, useMemo } from "react";
 import { History, TrendingUp, TrendingDown, Search, Loader2, X, ChevronRight } from "lucide-react";
 
 const TYPE_STYLE = {
-  "판매": { bg: "#E8F4E8", text: "#4A7A50" },
-  "입고": { bg: "#EEF2FF", text: "#4A5BA8" },
+  "판매":   { bg: "#E8F4E8", text: "#4A7A50" },
+  "입고":   { bg: "#EEF2FF", text: "#4A5BA8" },
+  "수입":   { bg: "#E8F4E8", text: "#4A7A50" },
+  "지출":   { bg: "#FDE8E8", text: "#A04A4A" },
 };
 
 function formatMonth(ym) {
@@ -12,13 +14,13 @@ function formatMonth(ym) {
   return year === currentYear ? `${parseInt(month)}월` : `${year.slice(2)}년 ${parseInt(month)}월`;
 }
 
-export default function HistoryView({ inventory = [], isLoading = false }) {
+export default function HistoryView({ inventory = [], isLoading = false, extraItems = [] }) {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("전체");
   const [selectedMonth, setSelectedMonth] = useState("전체");
   const [reportDetail, setReportDetail] = useState(null);
 
-  // inventory 아이템 → 입고 + 판매 이벤트로 펼치기
+  // inventory 아이템 + 기타비용/수입 → 이벤트로 펼치기
   const allEvents = useMemo(() => {
     const events = [];
     inventory.forEach((item) => {
@@ -34,15 +36,25 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
         events.push({
           id: `sell-${item.id}`,
           type: "판매",
-          date: item.purchase_date,
+          date: item.sale_date || item.purchase_date,
           name: item.name,
           channel: item.sale_channel || "직거래/기타",
           amount: item.sale_price || 0,
         });
       }
     });
+    extraItems.forEach((item) => {
+      events.push({
+        id: `extra-${item.id}`,
+        type: item.amount >= 0 ? "수입" : "지출",
+        date: (item.created_at || "").slice(0, 10),
+        name: item.name,
+        channel: "기타조정",
+        amount: item.amount,
+      });
+    });
     return events.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  }, [inventory]);
+  }, [inventory, extraItems]);
 
   const availableMonths = useMemo(() => {
     const months = [...new Set(allEvents.map((h) => h.date?.slice(0, 7)).filter(Boolean))];
@@ -58,22 +70,27 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
     });
   }, [allEvents, search, filterType, selectedMonth]);
 
-  const totalIn  = allEvents.filter((h) => h.type === "판매").reduce((sum, h) => sum + h.amount, 0);
+  const totalIn  = allEvents.filter((h) => h.type === "판매" || h.type === "수입").reduce((sum, h) => sum + h.amount, 0);
   const totalShipping = inventory
     .filter((i) => i.sale_price !== null)
     .reduce((sum, i) => sum + (i.shipping_cost || 0), 0);
-  const totalOut = allEvents.filter((h) => h.type === "입고").reduce((sum, h) => sum + Math.abs(h.amount), 0) + totalShipping;
+  const extraOut = extraItems.filter((e) => e.amount < 0).reduce((sum, e) => sum + Math.abs(e.amount), 0);
+  const totalOut = allEvents.filter((h) => h.type === "입고").reduce((sum, h) => sum + Math.abs(h.amount), 0) + totalShipping + extraOut;
+  const extraNetAdjust = extraItems.reduce((sum, e) => sum + e.amount, 0);
   const netProfit = inventory
     .filter((i) => i.sale_price !== null)
-    .reduce((sum, i) => sum + ((i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0)), 0);
+    .reduce((sum, i) => sum + ((i.sale_price || 0) - (i.purchase_cost || 0) - (i.shipping_cost || 0)), 0) + extraNetAdjust;
 
   // 월별 리포트
   const monthlyReport = useMemo(() => {
     const map = {};
+    const ensureMonth = (key) => {
+      if (!map[key]) map[key] = { month: key, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, shippingCost: 0, profit: 0, purchasedItems: [], soldItems: [], extraItems: [] };
+    };
     inventory.forEach((i) => {
       const buyKey = (i.purchase_date || "").slice(0, 7);
       if (buyKey) {
-        if (!map[buyKey]) map[buyKey] = { month: buyKey, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, shippingCost: 0, profit: 0, purchasedItems: [], soldItems: [] };
+        ensureMonth(buyKey);
         map[buyKey].buyCount++;
         map[buyKey].buyCost += i.purchase_cost || 0;
         map[buyKey].purchasedItems.push(i);
@@ -81,7 +98,7 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
       if (i.sale_price !== null) {
         const sellKey = (i.sale_date || i.purchase_date || "").slice(0, 7);
         if (sellKey) {
-          if (!map[sellKey]) map[sellKey] = { month: sellKey, buyCount: 0, buyCost: 0, sellCount: 0, revenue: 0, shippingCost: 0, profit: 0, purchasedItems: [], soldItems: [] };
+          ensureMonth(sellKey);
           map[sellKey].sellCount++;
           map[sellKey].revenue += i.sale_price || 0;
           map[sellKey].shippingCost += i.shipping_cost || 0;
@@ -90,8 +107,16 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
         }
       }
     });
+    extraItems.forEach((e) => {
+      const key = (e.created_at || "").slice(0, 7);
+      if (key) {
+        ensureMonth(key);
+        map[key].profit += e.amount;
+        map[key].extraItems.push(e);
+      }
+    });
     return Object.values(map).sort((a, b) => b.month.localeCompare(a.month));
-  }, [inventory]);
+  }, [inventory, extraItems]);
 
   return (
     <div className="space-y-6">
@@ -194,7 +219,7 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
           />
         </div>
         <div className="flex gap-2">
-          {["전체", "판매", "입고"].map((t) => (
+          {["전체", "판매", "입고", "수입", "지출"].map((t) => (
             <button
               key={t}
               onClick={() => setFilterType(t)}
@@ -336,6 +361,14 @@ export default function HistoryView({ inventory = [], isLoading = false }) {
                     <span className="text-ako-textLight">{s.label}</span>
                     <span className={`font-semibold ${s.color}`}>
                       {s.value >= 0 ? "+" : ""}₩{Math.abs(s.value).toLocaleString()}
+                    </span>
+                  </div>
+                ))}
+                {reportDetail.extraItems?.length > 0 && reportDetail.extraItems.map((e) => (
+                  <div key={e.id} className="flex justify-between">
+                    <span className="text-ako-textLight">{e.name}</span>
+                    <span className={`font-semibold ${e.amount >= 0 ? "text-ako-success" : "text-ako-error"}`}>
+                      {e.amount >= 0 ? "+" : ""}₩{Math.abs(e.amount).toLocaleString()}
                     </span>
                   </div>
                 ))}

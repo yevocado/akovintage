@@ -14,7 +14,11 @@ const CHANNEL_STYLE = {
   "직거래/기타":{ bg: "#F0F0F0", text: "#666666" },
 };
 
-const CHANNELS = ["당근", "콜렉티브", "번개장터", "후르츠", "인스타그램", "직거래/기타"];
+function loadChannels() {
+  try { return JSON.parse(localStorage.getItem("ako_channels")) || ["당근", "콜렉티브", "번개장터", "후르츠", "인스타그램", "직거래/기타"]; }
+  catch { return ["당근", "콜렉티브", "번개장터", "후르츠", "인스타그램", "직거래/기타"]; }
+}
+const CHANNELS = loadChannels();
 const LOCATIONS = ["동묘", "올드룩교하점", "옷파는야옹이"];
 
 function LocationSelect({ value, onChange, disabled }) {
@@ -342,9 +346,12 @@ export default function InventoryView({
 
       {/* ── 사입 등록 / 수정 모달 ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={closeModal} />
-          <div className="bg-white rounded-[16px] w-full max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10 max-h-[85vh] overflow-y-auto">
+          <div className="bg-white rounded-t-[20px] md:rounded-[16px] w-full md:max-w-[480px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10 max-h-[90vh] overflow-y-auto">
+            <div className="md:hidden flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-ako-border rounded-full" />
+            </div>
             <div className="px-7 py-5 border-b border-ako-border flex items-center justify-between">
               <h3 className="text-[18px] font-bold text-ako-text">
                 {editingItem ? "사입 정보 수정" : "사입 등록"}
@@ -458,9 +465,12 @@ export default function InventoryView({
 
       {/* ── 판매 완료 모달 ── */}
       {isSellModalOpen && sellingItem && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-end md:items-center justify-center p-0 md:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={closeSellModal} />
-          <div className="bg-white rounded-[16px] w-full max-w-[400px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10">
+          <div className="bg-white rounded-t-[20px] md:rounded-[16px] w-full md:max-w-[400px] shadow-[0_20px_60px_rgba(0,0,0,0.15)] relative z-10 max-h-[90vh] overflow-y-auto">
+            <div className="md:hidden flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-ako-border rounded-full" />
+            </div>
             <div className="px-7 py-5 border-b border-ako-border flex items-center justify-between">
               <div>
                 <h3 className="text-[18px] font-bold text-ako-text">판매 완료</h3>
@@ -490,7 +500,7 @@ export default function InventoryView({
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-[5px]">
                   <label className="text-[13px] text-ako-textLight font-medium">판매가 (₩)</label>
                   <input required disabled={isSellSubmitting} type="number" min="0"

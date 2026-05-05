@@ -1,40 +1,34 @@
-import React, { useState, useEffect } from "react";
-import { Store, Bell, Tag, Save, Plus, Minus, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { Store, Tag, Save, Plus, Minus } from "lucide-react";
 
-const CHANNELS = ["당근", "콜렉티브", "번개장터", "후르츠", "인스타그램", "직거래"];
+const ALL_CHANNELS = ["당근", "콜렉티브", "번개장터", "후르츠", "인스타그램", "직거래/기타"];
+const DEFAULT_CHANNELS = ["당근", "콜렉티브", "번개장터", "후르츠", "인스타그램", "직거래/기타"];
 
-export default function SettingsView() {
+function loadChannels() {
+  try { return JSON.parse(localStorage.getItem("ako_channels")) || DEFAULT_CHANNELS; }
+  catch { return DEFAULT_CHANNELS; }
+}
+
+export default function SettingsView({ extraItems = [], addExtra: addExtraFn, removeExtra }) {
   const [storeName, setStoreName] = useState("AKO VINTAGE");
   const [ownerName, setOwnerName] = useState("");
-  const [lowStockAlert, setLowStockAlert] = useState(5);
-  const [activeChannels, setActiveChannels] = useState(["당근", "번개장터", "인스타그램"]);
+  const [activeChannels, setActiveChannels] = useState(loadChannels);
   const [saved, setSaved] = useState(false);
 
-  // 추가 비용/수입
-  const [extraItems, setExtraItems] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("ako_extra_costs") || "[]"); }
-    catch { return []; }
-  });
   const [extraName, setExtraName]     = useState("");
   const [extraAmount, setExtraAmount] = useState("");
-  const [extraType, setExtraType]     = useState("지출"); // "지출" | "수입"
+  const [extraType, setExtraType]     = useState("지출");
 
-  useEffect(() => {
-    localStorage.setItem("ako_extra_costs", JSON.stringify(extraItems));
-  }, [extraItems]);
-
-  const addExtra = () => {
+  const addExtra = async () => {
     const amt = parseInt(extraAmount);
     if (!extraName.trim() || !amt) return;
-    setExtraItems((prev) => [
-      ...prev,
-      { id: Date.now(), name: extraName.trim(), amount: extraType === "지출" ? -Math.abs(amt) : Math.abs(amt) },
-    ]);
-    setExtraName("");
-    setExtraAmount("");
+    const amount = extraType === "지출" ? -Math.abs(amt) : Math.abs(amt);
+    const { error } = await addExtraFn({ name: extraName.trim(), amount });
+    if (!error) {
+      setExtraName("");
+      setExtraAmount("");
+    }
   };
-
-  const removeExtra = (id) => setExtraItems((prev) => prev.filter((e) => e.id !== id));
 
   const toggleChannel = (ch) => {
     setActiveChannels((prev) =>
@@ -43,6 +37,7 @@ export default function SettingsView() {
   };
 
   const handleSave = () => {
+    localStorage.setItem("ako_channels", JSON.stringify(activeChannels));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -83,27 +78,6 @@ export default function SettingsView() {
         </div>
       </div>
 
-      {/* 알림 설정 */}
-      <div className="bg-white p-6 rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
-        <h2 className="text-[15px] font-semibold text-ako-text flex items-center gap-2 mb-5">
-          <Bell size={16} className="text-ako-textLight" />
-          알림 설정
-        </h2>
-        <div className="space-y-[5px]">
-          <label className="text-[13px] text-ako-textLight font-medium">재고 부족 알림 기준</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={1}
-              value={lowStockAlert}
-              onChange={(e) => setLowStockAlert(parseInt(e.target.value) || 1)}
-              className="w-24 px-3 py-[9px] border border-ako-border rounded-lg focus:outline-none focus:border-ako-primary text-sm text-ako-text transition-colors"
-            />
-            <span className="text-sm text-ako-textLight">개 이하일 때 알림</span>
-          </div>
-        </div>
-      </div>
-
       {/* 판매 채널 */}
       <div className="bg-white p-6 rounded-[14px] border border-ako-border shadow-[0_1px_4px_rgba(0,0,0,0.04)]">
         <h2 className="text-[15px] font-semibold text-ako-text flex items-center gap-2 mb-5">
@@ -112,7 +86,7 @@ export default function SettingsView() {
         </h2>
         <p className="text-xs text-ako-textLight mb-4">사용 중인 판매 채널을 선택하세요.</p>
         <div className="flex flex-wrap gap-2">
-          {CHANNELS.map((ch) => (
+          {ALL_CHANNELS.map((ch) => (
             <button
               key={ch}
               onClick={() => toggleChannel(ch)}
@@ -176,37 +150,7 @@ export default function SettingsView() {
           </button>
         </div>
 
-        {/* 목록 */}
-        {extraItems.length === 0 ? (
-          <p className="text-center text-ako-textLight text-xs py-4">추가된 항목이 없어요.</p>
-        ) : (
-          <div className="divide-y divide-ako-border border border-ako-border rounded-xl overflow-hidden">
-            {extraItems.map((e) => (
-              <div key={e.id} className="flex items-center justify-between px-4 py-3 hover:bg-ako-bg transition-colors">
-                <div className="flex items-center gap-2">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${e.amount < 0 ? "bg-[#FDE8E8]" : "bg-[#E8F4E8]"}`}>
-                    {e.amount < 0 ? <Minus size={10} className="text-ako-error" /> : <Plus size={10} className="text-ako-success" />}
-                  </span>
-                  <p className="text-[13px] text-ako-text">{e.name}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <p className={`text-[13px] font-semibold ${e.amount < 0 ? "text-ako-error" : "text-ako-success"}`}>
-                    {e.amount < 0 ? "-" : "+"}₩{Math.abs(e.amount).toLocaleString()}
-                  </p>
-                  <button onClick={() => removeExtra(e.id)} className="text-ako-textLight hover:text-ako-error transition-colors">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-            <div className="px-4 py-3 bg-ako-tableHeader flex justify-between">
-              <p className="text-[12px] font-semibold text-ako-textLight">합계</p>
-              <p className={`text-[13px] font-bold ${extraItems.reduce((s, e) => s + e.amount, 0) >= 0 ? "text-ako-success" : "text-ako-error"}`}>
-                {extraItems.reduce((s, e) => s + e.amount, 0) >= 0 ? "+" : ""}₩{extraItems.reduce((s, e) => s + e.amount, 0).toLocaleString()}
-              </p>
-            </div>
-          </div>
-        )}
+        <p className="text-xs text-ako-textLight mt-1">추가된 항목은 거래 내역에서 확인할 수 있어요.</p>
       </div>
 
       {/* 저장 버튼 */}
